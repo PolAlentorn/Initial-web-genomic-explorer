@@ -6,12 +6,15 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Función para obtener datos limpios de la base de datos
 def fetch_genomic_data():
-    conn = sqlite3.connect('database/primates_data.db')
-    # Usamos dict_factory para que los resultados sean más fáciles de procesar en el frontend
+    # Obtiene la ruta absoluta de la carpeta actual donde está app.py
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    # Construye la ruta completa al .db
+    db_path = os.path.join(basedir, 'database', 'primates_data.db')
+    
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Consulta SQL limpia: excluimos registros sin nombre científico
     query = """
         SELECT * FROM genomas 
         WHERE scientific_name IS NOT NULL 
@@ -22,7 +25,6 @@ def fetch_genomic_data():
     rows = cursor.fetchall()
     conn.close()
     
-    # Convertimos los resultados a una lista de diccionarios
     return [dict(row) for row in rows]
 
 # Ruta principal: sirve la página web
