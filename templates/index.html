@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Genomic Data Explorer</title>
+    <!-- CSS de DataTables para un look profesional -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <style>
+        body { font-family: sans-serif; margin: 40px; }
+        .container { width: 90%; margin: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🧬 Genomic Data Explorer</h1>
+    <hr>
+    <!-- La tabla se renderizará aquí -->
+    <table id="genomasTable" class="display">
+        <thead>
+            <tr>
+                <th>Select</th>
+                <th>Run Accession</th>
+                <th>Scientific Name</th>
+                <th>Sample Accession</th>
+                <th>Instrument Model</th>
+            </tr>
+        </thead>
+    </table>
+    
+    <button id="downloadBtn">Download Selected Bash Script</button>
+</div>
+
+<!-- Librerías necesarias -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        var table = $('#genomasTable').DataTable({
+            ajax: { url: '/api/genomas', dataSrc: '' },
+            columns: [
+                { data: null, render: function() { return '<input type="checkbox" class="row-select">'; } },
+                { data: 'run_accession' },
+                { data: 'scientific_name' },
+                { data: 'sample_accession' },
+                { data: 'instrument_model' },
+                { data: 'fastq_ftp', visible: false } // Ocultamos la columna del enlace pero la mantenemos disponible
+            ]
+        });
+
+        // Lógica de descarga
+        $('#downloadBtn').on('click', function() {
+            let bashContent = "#!/bin/bash\n\necho 'Starting downloads...'\n\n";
+            let selectedCount = 0;
+
+            // Recorremos las filas donde el checkbox esté marcado
+            $('.row-select:checked').each(function() {
+                let rowData = table.row($(this).closest('tr')).data();
+                let links = rowData.fastq_ftp.split(';');
+                
+                links.forEach(function(link) {
+                    if(link) {
+                        let cleanLink = link.replace("ftp://", "https://");
+                        if (!cleanLink.startsWith("https://")) cleanLink = "https://" + cleanLink;
+                        bashContent += `wget -c --tries=0 --read-timeout=30 --retry-connrefused --waitretry=10 ${cleanLink}\n`;
+                    }
+                });
+                selectedCount++;
+            });
+
+            if(selectedCount === 0) {
+                alert("Please select at least one record.");
+                return;
+            }
+
+            bashContent += "\necho 'Downloads completed.'";
+
+            // Crear archivo temporal y forzar descarga
+            let blob = new Blob([bashContent], { type: 'text/x-shellscript' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'download_genomes.sh';
+            a.click();
+        });
+    });
+</script>
+
+</body>
+</html>
